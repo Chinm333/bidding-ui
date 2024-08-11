@@ -1,0 +1,109 @@
+.sign-in__wrapper {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    width: 100vw;
+    height: 100vh;
+    background-position: center center;
+    background-repeat: no-repeat;
+    background-size: cover;
+    position: relative;
+}
+
+.sign-in__backdrop {
+    position: absolute;
+    inset: 0;
+    background-color: rgba(0, 0, 0, 0.3);
+}
+
+.sign-in__wrapper form {
+    display: flex;
+    flex-direction: column;
+    width: 24rem;
+    max-width: 90%;
+    z-index: 1;
+    animation: showSignInForm 1s;
+}
+
+.sign-in__wrapper form img {
+    width: 4rem;
+    border-radius: 50%;
+}
+
+@keyframes showSignInForm {
+
+    0%,
+    30% {
+        transform: translate(0, -150%);
+    }
+
+    70%,
+    90% {
+        transform: translate(0, 1rem);
+    }
+
+    80%,
+    100% {
+        transform: translate(0, 0);
+    }
+}
+
+.button {
+    width: 215px;
+    height: 45px;
+    border-radius: 10px !important;
+    background: #495094 !important;
+    color: #FFF !important;
+    font-size: 14px !important;
+    font-style: normal;
+    font-weight: 600 !important;
+    line-height: normal;
+    border: none ! important;
+    margin: 5px 0px;
+}
+label{
+    color: #000 !important;
+    font-size: 16px !important;
+    font-style: normal;
+    font-weight: 500 !important;
+    line-height: normal;
+    display: block;
+}
+input,select{
+    color: #8a8a8a !important;
+    font-size: 16px !important;
+    font-style: normal;
+    line-height: normal;
+    display: block;
+}
+.link{
+    font-style: normal;
+    font-weight: 600;
+    font-size: 14px;
+    line-height: 19px;
+    color: #495094;
+    cursor: pointer;
+    margin: 0.5rem 0rem;
+}
+h1{
+    color: #000 !important;
+    font-size: 24px !important;
+    font-style: normal;
+    font-weight: 500 !important;
+    margin-top: 2rem !important;
+}
+th{
+    color: #000 !important;
+    font-size: 16px !important;
+    font-style: normal;
+    font-weight: 500 !important;
+    line-height: normal;
+    white-space: nowrap;
+}
+td{
+    color: #8a8a8a !important;
+    font-size: 16px !important;
+    font-style: normal;
+    line-height: normal;
+}

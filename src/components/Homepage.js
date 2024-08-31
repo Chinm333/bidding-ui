@@ -3,6 +3,10 @@ import { Table, Button, Modal, Form } from 'react-bootstrap';
 import { useDispatch } from 'react-redux';
 import { fetchBids, placeBid, sendInvitations, fetchLeaderboard, fetchBidSummary } from '../redux/actions/bidActions';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-toastify';
+import { getCurrentUser } from '../redux/actions/authActions';
+import axios from 'axios';
+import * as CONSTANT from '../constant/constant';
 
 const Homepage = () => {
     const [bids, setBids] = useState([]);
@@ -10,14 +14,17 @@ const Homepage = () => {
     const [showInviteModal, setShowInviteModal] = useState(false);
     const [showLeaderboardModal, setShowLeaderboardModal] = useState(false);
     const [showSummaryModal, setShowSummaryModal] = useState(false);
+    const [showEditModal, setShowEditModal] = useState(false);
     const [selectedBid, setSelectedBid] = useState(null);
     const [selectedBidItem, setSelectedBidItem] = useState('');
     const [bidAmount, setBidAmount] = useState('');
     const [emails, setEmails] = useState(['']);
     const [leaderboard, setLeaderboard] = useState([]);
     const [bidSummary, setBidSummary] = useState({});
+    const [endTime, setEndTime] = useState('');
     const dispatch = useDispatch();
     const navigate = useNavigate();
+    const currentUser = getCurrentUser();
 
     useEffect(() => {
         async function getBids() {
@@ -53,17 +60,28 @@ const Homepage = () => {
 
     const handleSubmitBid = async (e) => {
         if (selectedBid && selectedBidItem && bidAmount) {
-            e.preventDefault();
-            await dispatch(placeBid(selectedBid.bidId, selectedBidItem, bidAmount));
-            setShowBidModal(false);
-            setSelectedBidItem('');
-            setBidAmount('');
+            if (formatDateTime(selectedBid.endTime) > formatDateTime(new Date())) {
+                e.preventDefault();
+                await dispatch(placeBid(selectedBid.bidId, selectedBidItem, bidAmount));
+                setShowBidModal(false);
+                setSelectedBidItem('');
+                setBidAmount('');
+            } else {
+                toast.error('Bid time is over!');
+                setShowBidModal(false);
+                setSelectedBidItem('');
+                setBidAmount('');
+            }
         }
     };
 
     const handleInviteSubmit = async () => {
-        if (selectedBid && emails.length > 0) {
+        if (selectedBid && emails.length > 0 && selectedBid.endTime < new Date()) {
             await dispatch(sendInvitations(selectedBid.bidId, emails));
+            setShowInviteModal(false);
+            setEmails(['']);
+        } else {
+            toast.error('Bid time is over!');
             setShowInviteModal(false);
             setEmails(['']);
         }
@@ -97,8 +115,42 @@ const Homepage = () => {
     };
 
     const navigateToCreateBid = () => {
-        navigate('/create-bid');
+        if (currentUser.role === 'bid_creator') {
+            navigate('/create-bid');
+        } else {
+            toast.error('Only Bid Creators can create bids!');
+        }
     }
+    const extendEndTime = async () => {
+        try {
+            const response = await axios.put(CONSTANT.API_BASE_URL +`/api/bid/${selectedBid.bidId}`, { endTime });
+            toast.success('Bid end time updated successfully!');
+            setShowEditModal(false);
+            setBids([]);
+            const bids = await dispatch(fetchBids());
+            setBids(bids.data);
+            setEndTime('');
+        } catch (error) {
+            console.error('Error updating bid end time:', error);
+            toast.error('Failed to update bid end time');
+            setShowEditModal(false);
+        }
+    };
+    const handleActivateBid = async (bid) => {
+        if (formatDateTime(bid.endTime) < formatDateTime(new Date())) {
+            const utcDate = new Date(bid.endTime);
+            const istOffset = 5.5 * 60 * 60 * 1000;
+            const istDate = new Date(utcDate.getTime() + istOffset);
+            const formattedEndTime = istDate.toISOString().slice(0, 16);
+
+            setSelectedBid(bid);
+            setEndTime(formattedEndTime);
+            setShowEditModal(true);
+        } else {
+            toast.error('Bid is still active!');
+        }
+    };
+
 
     return (
         <div className="container">
@@ -107,6 +159,8 @@ const Homepage = () => {
                     Create Bid
                 </Button>
             </div>
+            <h1>{currentUser.email}</h1>
+            <h1>{currentUser.role}</h1>
             <h1>All Bids</h1>
             <Table striped bordered hover>
                 <thead>
@@ -130,12 +184,23 @@ const Homepage = () => {
                             <td>{bid.creator}</td>
                             <td>{bid.items.length}</td>
                             <td>
-                                <Button className='button' onClick={() => handleBidClick(bid)}>
-                                    Place Bid
-                                </Button>
-                                <Button className='button ml-2' onClick={() => handleInviteClick(bid)}>
-                                    Invite Bidders
-                                </Button>
+                                {
+                                    formatDateTime(bid.endTime) < formatDateTime(new Date()) ? (
+                                        <Button className='button' onClick={() => handleActivateBid(bid)}>
+                                            Activate Bid
+                                        </Button>
+                                    ) : (
+                                        <>
+                                            <Button className='button' onClick={() => handleBidClick(bid)}>
+                                                Place Bid
+                                            </Button>
+                                            <Button className='button ml-2' onClick={() => handleInviteClick(bid)}>
+                                                Invite Bidders
+                                            </Button>
+                                        </>
+                                    )
+                                }
+
                                 <Button className='button ml-2' onClick={() => handleLeaderboardClick(bid)}>
                                     Show Leaderboard
                                 </Button>
@@ -327,8 +392,36 @@ const Homepage = () => {
                     </Button>
                 </Modal.Footer>
             </Modal>
+
+            {/* Modal for Editing Bidders */}
+            <Modal show={showEditModal} onHide={() => setShowEditModal(false)}>
+                <Modal.Header closeButton>
+                    <Modal.Title>Edit BidItem for {selectedBid?.title}</Modal.Title>
+                </Modal.Header>
+                <Modal.Body>
+                    <Form>
+                        <Form.Group className="mb-3" controlId="end">
+                            <Form.Label>End Time</Form.Label>
+                            <Form.Control
+                                type="datetime-local"
+                                value={endTime}
+                                onChange={(e) => setEndTime(e.target.value)} />
+                        </Form.Group>
+                    </Form>
+                </Modal.Body>
+                <Modal.Footer>
+                    <Button className='button' onClick={() => setShowEditModal(false)}>
+                        Close
+                    </Button>
+                    <Button className='button' type="button" onClick={extendEndTime}>
+                        Save
+                    </Button>
+                </Modal.Footer>
+            </Modal>
         </div>
     );
+
+
 };
 
 export default Homepage;
